@@ -1,35 +1,35 @@
-# demo 分镜 —— DSH 历史迁移：原理 + 实测（task-4 版）
+# demo 分镜 —— DSH 历史迁移：原理 + 能力 + 实测（task-5 版）
 
-- 规格：1920x1080 / 30fps / H.264 (High) / yuv420p / 时长 115 秒 / 中文字幕
+- 规格：1920x1080 / 30fps / H.264 (High) / yuv420p / 时长 140 秒 / 中文字幕
 - 内容源：`content.json`（画面文案）+ `captured/*.txt`（**现场真实**终端输出）
 - 旁白以底部字幕条呈现，无音轨
 - 脱敏：捕获的真实输出先替换再画帧 / 落盘 —— 用户名与用户路径 → `<workspace>`，
   临时目录 → `<tmp>`，DSH 启动器路径 → `<cli>`，非 demo 会话 id → `session-<id>`
 
-## 总览（13 屏）
+## 总览（15 屏 / 140 秒）
 
 | # | 分镜 | 类型 | 时长 | 画面内容 |
 |---|---|---|---|---|
 | 01 | 封面 | cover | 6s | 标题「把对话历史迁进 DSH / 一条条过校验器」 |
 | 02 | 为什么要做 | list | 7s | 历史分散在 VS Code / MiMo，DSH 不兼容导出 |
-| 03 | 迁移流水线 | flow | 8s | 抽取 → 生成 → 按帧压缩 → 校验 → 缓存 → 注册 |
-| 04 | 磁盘格式 | code | 8s | `session.v4.jsonl.zstd`：header 独占帧 #0，事件各占一帧 |
-| 05 | 硬性要求 1/2 | list | 8s | ① cwd ② sessionIds ③ session/title ④ seq 连续 |
-| 06 | 硬性要求 2/2 | list | 8s | ⑤ 首帧只装 header ⑥ 逐轮配对 turn ⑦ 模型流 ⑧ projcache |
-| 07 | 实测 1/6 复现旧导入 | terminal | 12s | 9 条旧布局：**8 FAIL / 1 PASS**，报 turn/start does not open the expected turn |
-| 08 | 实测 2/6 修 R9 | terminal | 11s | 逐轮配对 turn/start → turn/end（turn 1..N）→ **9/9 PASS** |
-| 09 | 实测 3/6 补 AI 回复 | terminal | 11s | assistant/message + 合规 stream → 仍然 **9/9 PASS** |
-| 10 | 实测 4/6 技能自测 | terminal | 11s | `node scripts/selftest.mjs --dsh <cli>` → **RESULT: PASS (19/19 checks)** |
-| 11 | 实测 5/6 技能校验器 | terminal | 10s | `verify-dsh-session.mjs --require-cache --run-dsh` → **RESULT: PASS (11 checks)** |
-| 12 | 实测 6/6 隐私 | terminal | 8s | `node privacy-scan.mjs .` → **hits: 0** |
-| 13 | 收尾 | list | 7s | 交付物清单与脱敏说明 |
-
-合计 115 秒。
+| 03 | **MiMo 三条来源** | list | 12s | ① VS Code chatSessions ② MiMo Studio 桌面版 ③ MiMo AI Studio 网页版 userscript |
+| 04 | 迁移流水线 | flow | 8s | 抽取 → 生成 → 按帧压缩 → 校验 → 缓存 → 注册 |
+| 05 | 磁盘格式 | code | 8s | `session.v4.jsonl.zstd`：header 独占帧 #0，事件各占一帧 |
+| 06 | 硬性要求 1/2 | list | 8s | ① cwd ② sessionIds ③ session/title ④ seq 连续 |
+| 07 | 硬性要求 2/2 | list | 8s | ⑤ 首帧只装 header ⑥ 逐轮配对 turn ⑦ 模型流 ⑧ projcache |
+| 08 | 实测 1/6 复现旧导入 | terminal | 12s | 9 条旧布局：**8 FAIL / 1 PASS**，报 turn/start does not open the expected turn |
+| 09 | 实测 2/6 修 R9 | terminal | 11s | 逐轮配对 turn/start → turn/end（turn 1..N）→ **9/9 PASS** |
+| 10 | 实测 3/6 补 AI 回复 | terminal | 11s | assistant/message + 合规 stream → 仍然 **9/9 PASS** |
+| 11 | 实测 4/6 技能自测 | terminal | 11s | `node scripts/selftest.mjs --dsh <cli>` → **RESULT: PASS (19/19 checks)** |
+| 12 | 实测 5/6 技能校验器 | terminal | 10s | `verify-dsh-session.mjs --require-cache --run-dsh` → **RESULT: PASS (11 checks)** |
+| 13 | 实测 6/6 隐私 | terminal | 8s | `node privacy-scan.mjs .` → **hits: 0** |
+| 14 | **可扩展性 5 条** | list | 13s | 接新来源 / 加新检查 / 接新提供商 / 换环境 / 共享库 |
+| 15 | 收尾 | list | 7s | 交付物清单与脱敏说明 |
 
 ## 原理部分（6 屏）
 
 ### 01 封面（6s）
-- 画面：大标题 + 副标题「原理 6 屏 + 实测 6 步 · 115 秒」+ 规格徽标
+- 大标题 + 副标题「原理 6 屏 + 能力 2 屏 + 实测 6 步 · 140 秒」+ 规格徽标
 - 旁白：这次实测全部来自本机真实运行：旧布局会话、DSH 自带校验器、技能自测与隐私扫描。
 
 ### 02 为什么要做（7s）
@@ -38,26 +38,42 @@
 - DSH 只认自己的一种会话格式，不兼容任何导出
 - 目标：旧对话变成 DSH 能加载、侧栏能看到的会话
 
-### 03 迁移流水线（8s）
+### 04 迁移流水线（8s）
 - 6 个步骤方框：抽取源记录 → 生成事件流 → 按帧压缩 → 逐条校验 → 生成会话缓存 → 注册工作区
 - 旁白：关键在中间三步：会话文件由 zstd 帧串成，格式不对 DSH 会直接拒绝加载。
 
-### 04 磁盘格式（8s）
+### 05 磁盘格式（8s）
 - 帧布局示意（frame #0 = header，其余事件各一帧），末行列出事件词汇
 - 旁白：DSH 不把整段对话压成一帧：帧边界必须与行一一对应。
 
-### 05 硬性要求 1/2（8s）
+### 06 硬性要求 1/2（8s）
 - ① header.cwd 用单反斜杠，且与工作区账本逐字符一致
 - ② session id 要写进对应工作区的 sessionIds
 - ③ 显示名由 session/title 事件决定，不是文件名
 - ④ 事件 seq 从 0 连续递增，跳号直接报 seq gap
 
-### 06 硬性要求 2/2（8s）
+### 07 硬性要求 2/2（8s）
 - ⑤ 第一个 zstd 帧必须恰好只装 header 一行
 - ⑥ 每一轮自成一对 turn/start → turn/end，turn 必须 1..N 递增（R9）
 - ⑦ assistant/message 必须带完整模型流 stream（R10）
 - ⑧ 侧栏还需要投影缓存 projcache；agentPreset 要在 profile 组装范围内
 - 旁白：旧导入 9 条里 8 条坏在第 ⑥ 条：单轮会话看不出问题，多轮才被校验器抓出来。
+
+## 能力部分（2 屏，task-5 新增）
+
+### 03 MiMo 三条来源（12s）
+- ① VS Code Copilot Chat 本地 `chatSessions` —— 最完整，含 AI 回复
+- ② MiMo Studio 桌面版 —— 只有文件快照 / 产物 / 任务卡 / 日志元数据，正文不在本地
+- ③ MiMo AI Studio 网页版 userscript 导出 —— 拿到正文的唯一路径
+- 旁白：三条路径覆盖不同完整度：要 AI 回复走 VS Code，要正文走网页版 userscript 导出。
+
+### 14 可扩展性 5 条（13s）
+- ① 接新来源：只要产出 `[{user, assistant}]` 的 `turns.json`
+- ② 加新检查：verify 与 selftest 的断言各自独立，照抄一条即可
+- ③ 接新模型提供商：`mimo/cordis.patch.yml` 模板，改 `baseURL / api / models`
+- ④ 换目标环境：`--home / --cwd / --dsh` 全参数化，CI 也能跑
+- ⑤ 共享库：`scripts/lib/dsh-session.mjs` 统一帧编码与参数解析
+- 旁白：技能本身不绑定来源与环境：换来源、换检查、换提供商、换机器，都只改局部。
 
 ## 实测部分（6 步，全部现场真实运行）
 

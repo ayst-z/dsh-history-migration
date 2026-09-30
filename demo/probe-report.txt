@@ -1,8 +1,8 @@
-demo.mp4 —— 介质探测报告（task-4 版）
-生成时间: 2026-09-30 22:31 (render.ps1 最近一次运行, -SkipCapture)
+demo.mp4 —— 介质探测报告（task-5 版）
+生成时间: 2026-09-30 22:46 (render.ps1 最近一次运行, -SkipCapture)
 文件: demo/demo.mp4
-字节: 2926534
-SHA256: d1fa6d278e6caa5e7165b17065b661b8f6ae6ef09b8d6bb7cb78a950beeba1c5
+字节: 3409540
+SHA256: 8b773dd8a669247a77b103fc8632b6ddc16164289c846638091fd110b9b2978a
 
 ffprobe 状态
 -----------
@@ -14,21 +14,27 @@ ffprobe 状态
   ffmpeg -hide_banner -i demo/demo.mp4
 
 实测输出:
-  Duration: 00:01:55.00, start: 0.000000, bitrate: 203 kb/s
-  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, unknown/bt709/iec61966-2-1, progressive), 1920x1080 [SAR 1:1 DAR 16:9], 200 kb/s, 30 fps, 30 tbr, 15360 tbn (default)
+  Duration: 00:02:20.00, start: 0.000000, bitrate: 194 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, unknown/bt709/iec61966-2-1, progressive), 1920x1080 [SAR 1:1 DAR 16:9], 191 kb/s, 30 fps, 30 tbr, 15360 tbn (default)
 
 结论
 ----
-- 时长 115.0 秒（00:01:55.00），13 屏（原理 6 + 实测 6 + 收尾 1）
+- 时长 140.0 秒（00:02:20.00），15 屏（原理 6 + 能力 2 + 实测 6 + 收尾 1）
 - 分辨率 1920x1080（DAR 16:9）
 - 帧率 30 fps
 - 编码 H.264 High，像素格式 yuv420p
 - 无音轨（旁白为中文字幕条）
 
+task-5 新增两屏
+---------------
+- 03b-sources  能力 1/2 · MiMo 三条来源（12s）：VS Code chatSessions / MiMo Studio 桌面版 / MiMo AI Studio 网页版 userscript
+- 13b-extend   能力 2/2 · 可扩展性（13s）：接新来源 / 加新检查 / 接新提供商 / 换环境 / 共享库
+文案取自仓库 README 的「功能」与「可扩展性」两节；实测证据未重跑（沿用 task-4 的真实 captured/*.txt）。
+
 同批证据
 --------
-- captured/10-privacy.txt: scanned: 45 files | hits: 0（capture 内置扫描）
 - 仓库复扫: node privacy-scan.mjs . -> scanned: 48 files | hits: 0
+- captured/10-privacy.txt: scanned: 45 files | hits: 0（capture 内置扫描）
 - captured/summary.json: privacyHitsZero = true, expected-exit-codes-honoured = true
 - 实测链关键结果: 旧布局 8 FAIL / 1 PASS -> repair 后 9/9 PASS -> 补 AI 回复后 9/9 PASS
   -> selftest RESULT: PASS (19/19) -> verify RESULT: PASS (11 checks)

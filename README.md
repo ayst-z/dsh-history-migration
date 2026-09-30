@@ -14,7 +14,7 @@
 | **自带隐私扫描器** | `privacy-scan.mjs` 交付前一键自查（真实用户名/路径/会话 id/密钥） |
 | **格式自适应导入** | `import-mimo-export.mjs` 自动识别 4 种导出排版 |
 | **顺带扩展 DSH 模型** | `mimo/` 提供 MiMo 提供商补丁（端点 / 协议 / 模型齐备，**密钥留空**） |
-| **演示录像** | `demo/demo.mp4`：115 秒，原理 + 真实实测 |
+| **演示录像** | `demo/demo.mp4`：140 秒，原理 + 能力 + 真实实测 |
 
 ## 快速开始
 
@@ -79,7 +79,7 @@ node scripts/verify-dsh-session.mjs --in <session.v4.jsonl.zstd> --require-cache
 
 ## 演示
 
-`demo/demo.mp4` —— 115 秒 1080p30：原理 6 屏 + 实测 6 屏 + 收尾。实测段是现场真跑：**8 条坏 → 修好 → 9/9 通过 → 补 AI 回复 → 仍 9/9 通过**，并附 `selftest 19/19`、`verify 11 checks`、`privacy hits 0`。可用 `demo/render.ps1` 复跑重制。
+`demo/demo.mp4` —— 140 秒 1080p30（15 屏）：原理 6 + 能力 2 + 实测 6 + 收尾。实测段是现场真跑：**8 条坏 → 修好 → 9/9 通过 → 补 AI 回复 → 仍 9/9 通过**，并附 `selftest 19/19`、`verify 11 checks`、`privacy hits 0`。可用 `demo/render.ps1` 复跑重制。
 
 ## 隐私与安全
 

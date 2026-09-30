@@ -14,7 +14,7 @@
       "duration": 6,
       "kicker": "DSH 历史迁移 · 演示",
       "title": "把对话历史迁进 DSH\n一条条过校验器",
-      "subtitle": "原理 6 屏 + 实测 6 步 · 115 秒",
+      "subtitle": "原理 6 屏 + 能力 2 屏 + 实测 6 步 · 140 秒",
       "badge": "1920x1080 · 30fps · H.264",
       "narration": "这次实测全部来自本机真实运行：旧布局会话、DSH 自带校验器、技能自测与隐私扫描。"
     },
@@ -31,6 +31,19 @@
         "目标：旧对话变成 DSH 能加载、侧栏能看到的会话"
       ],
       "narration": "原始数据体量大、又在应用私有目录里，所以在原地抽取，只迁移有实质内容的会话。"
+    },
+    {
+      "id": "03b-sources",
+      "kind": "list",
+      "duration": 12,
+      "kicker": "能力 1/2 · MiMo 三条来源",
+      "title": "三条来源路径",
+      "bullets": [
+        "① VS Code Copilot Chat 本地 chatSessions —— 最完整，含 AI 回复",
+        "② MiMo Studio 桌面版 —— 只有文件快照 / 产物 / 任务卡 / 日志元数据，正文不在本地",
+        "③ MiMo AI Studio 网页版 userscript 导出 —— 拿到正文的唯一路径"
+      ],
+      "narration": "三条路径覆盖不同完整度：要 AI 回复走 VS Code，要正文走网页版 userscript 导出。"
     },
     {
       "id": "03-flow",
@@ -167,6 +180,21 @@
         "10-privacy.txt"
       ],
       "narration": "成片与仓库文本先脱敏再落盘：用户名与临时路径换成 <workspace>/<tmp>，真实会话 id 换成 session-<id>。"
+    },
+    {
+      "id": "13b-extend",
+      "kind": "list",
+      "duration": 13,
+      "kicker": "能力 2/2 · 可扩展性",
+      "title": "五处可以继续长",
+      "bullets": [
+        "① 接新来源：只要产出 [{user, assistant}] 的 turns.json",
+        "② 加新检查：verify 与 selftest 的断言各自独立，照抄一条即可",
+        "③ 接新模型提供商：mimo/cordis.patch.yml 模板，改 baseURL / api / models",
+        "④ 换目标环境：--home / --cwd / --dsh 全参数化，CI 也能跑",
+        "⑤ 共享库：scripts/lib/dsh-session.mjs 统一帧编码与参数解析"
+      ],
+      "narration": "技能本身不绑定来源与环境：换来源、换检查、换提供商、换机器，都只改局部。"
     },
     {
       "id": "13-outro",

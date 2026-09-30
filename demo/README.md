@@ -1,15 +1,15 @@
-# demo —— 原理 + 实测演示片
+# demo —— 原理 + 能力 + 实测演示片
 
 产物：
 
 | 文件 | 说明 |
 |---|---|
-| `storyboard.md` | 分镜（13 屏 / 115 秒：原理 6 屏 + 实测 6 步） |
+| `storyboard.md` | 分镜（15 屏 / 140 秒：原理 6 + 能力 2 + 实测 6 + 收尾 1） |
 | `content.json` | 画面文案（UTF-8；脚本保持 ASCII） |
 | `render.ps1` | 一键渲染：真跑证据链 → GDI+ 画帧 → ffmpeg 合成 |
 | `live/*.mjs` | 复现 / 修复 / 补 AI 回复 / 全量校验 / 采集 |
 | `captured/*.txt` | 每次运行留下的**真实 stdout**（已脱敏；画面终端输出就是它） |
-| `demo.mp4` | 成片：1920x1080 / 30fps / H.264 / yuv420p / 115 秒 |
+| `demo.mp4` | 成片：1920x1080 / 30fps / H.264 / yuv420p / 140 秒 |
 | `frames/` `clips/` `live/scratch/` | 中间产物，可删（已在 `.gitignore` 忽略） |
 
 ## 依赖
@@ -31,11 +31,12 @@ pwsh -File demo/render.ps1
 ```
 
 可选开关：`-SkipCapture`（复用 `captured/*.txt`）、`-SkipVideo`（只画 `frames/*.png`）、`-Fps`。
+只改文案/加屏时用 `-SkipCapture` 重渲染即可（实测证据不变）。
 
 render.ps1 做的事：
 
 1. `node live/capture.mjs --dsh <cli>` —— 现场跑 10 条命令（见下），stdout 脱敏后写入 `captured/*.txt`
-2. GDI+ 把 `content.json` + `captured/*.txt` 画成 13 张 1920x1080 PNG
+2. GDI+ 把 `content.json` + `captured/*.txt` 画成 15 张 1920x1080 PNG
 3. 每张图编码成带 0.4s 淡入淡出的 H.264 片段，再无损拼接为 `demo.mp4`
 4. ffprobe 报告时长/分辨率；被宿主策略禁用时退回 `ffmpeg -i`
 
@@ -89,7 +90,7 @@ fixture 会话 id 用全零 demo uuid（`session-00000000-0000-4000-8000-0000000
 ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,r_frame_rate,pix_fmt -show_entries format=duration,size -of default=noprint_wrappers=1 demo/demo.mp4
 ```
 
-期望：`h264` / `1920x1080` / `30 fps` / `yuv420p` / `duration ≈ 115`。
+期望：`h264` / `1920x1080` / `30 fps` / `yuv420p` / `duration ≈ 140`。
 
 ## 隐私
 
