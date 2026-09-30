@@ -1,0 +1,11 @@
+[assistant] rebuild via scripts/build-dsh-session.mjs (R10 stream, 4 records)
+[assistant] 1  messages: 3 (assistant replies: 3)   events: 23   frames: 24
+[assistant] 2  messages: 4 (assistant replies: 4)   events: 29   frames: 30
+[assistant] 3  messages: 2 (assistant replies: 2)   events: 17   frames: 18
+[assistant] 4  messages: 5 (assistant replies: 5)   events: 35   frames: 36
+[assistant] 5  messages: 3 (assistant replies: 3)   events: 23   frames: 24
+[assistant] 6  messages: 2 (assistant replies: 2)   events: 17   frames: 18
+[assistant] 7  messages: 4 (assistant replies: 4)   events: 29   frames: 30
+[assistant] 8  messages: 3 (assistant replies: 3)   events: 23   frames: 24
+[assistant] 9  messages: 1 (assistant replies: 1)   events: 11   frames: 12
+[assistant] rebuilt 9 sessions, 27 assistant/message events with compliant stream

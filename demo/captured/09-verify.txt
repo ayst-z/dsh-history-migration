@@ -1,0 +1,13 @@
+PASS  file readable  -- 3529 bytes, 24 zstd frames
+PASS  first frame = exactly one header line  -- first frame has 1 line(s)
+PASS  one event per frame  -- 0 frame(s) hold a different line count
+PASS  header parses as a session header  -- id=session-00000000-0000-4000-8000-000000000001 version=4
+PASS  header id present  -- session-00000000-0000-4000-8000-000000000001
+PASS  header cwd present  -- <tmp>\workspace
+PASS  seq continuous from 0  -- events=23 seqs=0..22
+PASS  no assistant/message without a model stream  -- 3 assistant/message event(s), 0 without stream
+PASS  session/title present with valid messageSeqs  -- "legacy-001 · 3 rounds" messageSeqs=[6]
+PASS  projcache entry present  -- <tmp>\dsh-home\storages\session_projcache\sessions\session-00000000-0000-4000-8000-000000000001.json (exists)
+PASS  dsh live check  -- accepted (format ok; preset not composed by one-shot runner) in 2116ms | dsh: session "session-00000000-0000-4000-8000-000000000001" runs under agent preset "standard", which the one-shot runner does not compose
+
+RESULT: PASS (11 checks)

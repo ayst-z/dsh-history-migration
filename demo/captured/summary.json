@@ -1,0 +1,77 @@
+{
+  "generatedAt": "2026-09-30T14:30:04.474Z",
+  "node": "v24.19.0",
+  "privacyHitsZero": true,
+  "steps": [
+    {
+      "id": "01-fixture",
+      "command": "node live/legacy-fixture.mjs --home <tmp>\\dsh-home --ws <tmp>\\workspace",
+      "exitCode": 0,
+      "ms": 88,
+      "lines": 7
+    },
+    {
+      "id": "02-validate-legacy",
+      "command": "node live/validate-all.mjs --home <tmp>\\dsh-home --dsh <cli>",
+      "exitCode": 1,
+      "ms": 18563,
+      "lines": 10
+    },
+    {
+      "id": "03-repair",
+      "command": "node live/repair-turns.mjs --home <tmp>\\dsh-home",
+      "exitCode": 0,
+      "ms": 100,
+      "lines": 5
+    },
+    {
+      "id": "04-validate-fixed",
+      "command": "node live/validate-all.mjs --home <tmp>\\dsh-home --dsh <cli> --quiet",
+      "exitCode": 0,
+      "ms": 18921,
+      "lines": 1
+    },
+    {
+      "id": "05-assistant",
+      "command": "node live/rebuild-with-assistant.mjs --home <tmp>\\dsh-home",
+      "exitCode": 0,
+      "ms": 707,
+      "lines": 11
+    },
+    {
+      "id": "06-validate-assistant",
+      "command": "node live/validate-all.mjs --home <tmp>\\dsh-home --dsh <cli> --quiet",
+      "exitCode": 0,
+      "ms": 18535,
+      "lines": 1
+    },
+    {
+      "id": "07-selftest",
+      "command": "node scripts/selftest.mjs --dsh <cli>",
+      "exitCode": 0,
+      "ms": 2674,
+      "lines": 55
+    },
+    {
+      "id": "08-cache",
+      "command": "node scripts/generate-dsh-cache.mjs --home <tmp> --session session-00000000-0000-4000-8000-000000000001",
+      "exitCode": 0,
+      "ms": 77,
+      "lines": 2
+    },
+    {
+      "id": "09-verify",
+      "command": "node scripts/verify-dsh-session.mjs --in <tmp>/session.v4.jsonl.zstd --require-cache --home <tmp> --session-id session-00000000-0000-4000-8000-000000000001 --dsh <cli> --run-dsh",
+      "exitCode": 0,
+      "ms": 2191,
+      "lines": 12
+    },
+    {
+      "id": "10-privacy",
+      "command": "node privacy-scan.mjs .   (run from <repo>)",
+      "exitCode": 0,
+      "ms": 82,
+      "lines": 2
+    }
+  ]
+}

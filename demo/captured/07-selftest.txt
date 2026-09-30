@@ -1,0 +1,57 @@
+self-test root: <tmp>
+DSH home:       <tmp>
+workspace cwd:  <tmp>
+session id:     session-<id>
+
+PASS  privacy scan: no hard-coded personal paths  -- clean
+PASS  build session (2 user messages)  [exit 0]
+    session:  session-<id>
+    cwd:      <tmp>
+    messages: 2 (assistant replies: 0)   events: 15   frames: 16
+    seq:      0..14 (continuous)
+PASS  session file exists at the standard location  -- <tmp>
+PASS  decode session  [exit 0]
+    file:    <tmp>
+    bytes:   1720   frames: 16   events: 15
+    session: session-<id>
+    cwd:     <tmp>
+PASS  decoded header round-trips  -- id=session-<id>
+PASS  decoded JSONL line count = 1 header + 15 events  -- 16 lines
+PASS  list sessions (json)  [exit 0]
+    [
+      {
+        "id": "session-<id>",
+        "workspaceDir": "--C-Users-<user>-AppData-Local-Temp-dsh-selftest-<tmp>-workspace--",
+PASS  list finds the built session  -- 1 row(s)
+PASS  verify session (offline)  [exit 0]
+    PASS  file readable  -- 1720 bytes, 16 zstd frames
+    PASS  first frame = exactly one header line  -- first frame has 1 line(s)
+    PASS  one event per frame  -- 0 frame(s) hold a different line count
+    PASS  header parses as a session header  -- id=session-<id> version=4
+PASS  offline verification passes  -- exit 0
+PASS  negative control: seq gap is rejected  -- exit 1
+PASS  generate projection cache  [exit 0]
+    cache: session-<id>  rows=26  title="Self-test session"
+    cache entries written: 1
+PASS  cache has version 7 and the session title  -- rows=26
+PASS  verify session (live dsh loader)  [exit 0]
+    PASS  file readable  -- 1720 bytes, 16 zstd frames
+    PASS  first frame = exactly one header line  -- first frame has 1 line(s)
+    PASS  one event per frame  -- 0 frame(s) hold a different line count
+    PASS  header parses as a session header  -- id=session-<id> version=4
+    PASS  dsh live check  -- accepted (format ok; preset not composed by one-shot runner) in 2003ms | dsh: session "session-<id>" runs under agent preset "standard", which the one-shot runner does not compose
+PASS  live check reports a format-accepted verdict  -- PASS  dsh live check  -- accepted (format ok; preset not composed by one-shot runner) in 2003ms | dsh: session "session-<id>" runs under agent preset "standard", which the one-shot runner does not compose
+PASS  export VS Code chat (fixture)  [exit 0]
+    source files:  1
+    sessions:      1   requests: 1   unreadable: 0
+    written:       <tmp>
+    written:       <tmp>
+PASS  vscode export keeps the fixture session  -- {"file":"fixture.jsonl","sessionId":"fixture-session","created":1600000000000,"responder":"tester","requests":[{"ts":160
+PASS  export MiMo records (fixture)  [exit 0]
+    rolechat rows: 1
+    artifacts:     1
+      2020-01-01 00:00:00 | fixture-task | workspace
+    written: <tmp>
+PASS  mimo export keeps the fixture rows  -- rolechat + artifacts markdown written
+
+RESULT: PASS  (19/19 checks)

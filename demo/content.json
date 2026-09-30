@@ -103,7 +103,7 @@
       "captures": [
         "02-validate-legacy.txt"
       ],
-      "narration": "旧布局每轮都写 turn/start{turn:1}：8 条多轮会话全部报 turn/start does not open the expected turn，只有单轮那条通过。"
+      "narration": "旧布局每轮都写 turn/start{turn:1}：8 条多轮会话全部被拒，单轮那条通过。"
     },
     {
       "id": "08-repair",
@@ -129,7 +129,7 @@
         "05-assistant.txt",
         "06-validate-assistant.txt"
       ],
-      "narration": "用仓库里的 build-dsh-session.mjs 重建：每条 user/message 后补 assistant/message，带 block-start → text-delta → block-end → finish 四段流。"
+      "narration": "重建时给每条 user/message 补上 assistant/message 与四段合规 stream，复查仍然全通过。"
     },
     {
       "id": "10-selftest",

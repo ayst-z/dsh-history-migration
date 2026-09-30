@@ -58,6 +58,9 @@ if (-not $SkipCapture) {
   $dshArg = $DshCli
   if ([string]::IsNullOrEmpty($dshArg)) { $dshArg = $env:DSH_CLI }
   if ([string]::IsNullOrEmpty($dshArg)) { throw 'no DSH launcher: pass -DshCli <dsh.cmd> or set DSH_CLI' }
+  # capture runs its own privacy scan over the repo: make sure no stale
+  # concat list (which may hold absolute paths) is left from a previous run.
+  Get-ChildItem -Path $ClipsDir -Filter 'concat.txt' -ErrorAction SilentlyContinue | Remove-Item -Force
   Write-Host '[capture] running live pipeline ...'
   & node (Join-Path $DemoDir 'live/capture.mjs') --dsh $dshArg
   if ($LASTEXITCODE -ne 0) { throw "capture.mjs failed with exit code $LASTEXITCODE" }
