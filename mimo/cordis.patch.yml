@@ -1,0 +1,16 @@
+- id: llm-pi-ai
+  name: "@deepseek-ai/dsh-llm-pi-ai"
+  config:
+    providers:
+      mimo:
+        displayName: MiMo
+        api: openai-completions
+        baseURL: https://api.xiaomimimo.com/v1
+        apiKeyEnv: MIMO_API_KEY
+        models:
+          - id: mimo-v2.6-flash
+            name: MiMo V2.6 Flash
+          - id: mimo-v2.6-pro
+            name: MiMo V2.6 Pro
+          - id: mimo-v2.6-pro-ultraspeed
+            name: MiMo-V2.6-Pro-UltraSpeed

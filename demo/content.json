@@ -1,0 +1,186 @@
+{
+  "meta": {
+    "title": "把对话历史迁进 DSH",
+    "repo": "dsh-history-migration",
+    "size": "1920x1080",
+    "fps": 30,
+    "codec": "H.264 / yuv420p",
+    "note": "终端输出均为本机现场运行后脱敏：用户名 → <workspace>，临时目录 → <tmp>，真实会话 id → session-<id>。"
+  },
+  "shots": [
+    {
+      "id": "01-cover",
+      "kind": "cover",
+      "duration": 6,
+      "kicker": "DSH 历史迁移 · 演示",
+      "title": "把对话历史迁进 DSH\n一条条过校验器",
+      "subtitle": "原理 6 屏 + 实测 6 步 · 115 秒",
+      "badge": "1920x1080 · 30fps · H.264",
+      "narration": "这次实测全部来自本机真实运行：旧布局会话、DSH 自带校验器、技能自测与隐私扫描。"
+    },
+    {
+      "id": "02-why",
+      "kind": "list",
+      "duration": 7,
+      "kicker": "原理 1/6 · 为什么要做",
+      "title": "历史散落在别的工具里",
+      "bullets": [
+        "VS Code Copilot Chat：38 个会话 / 1270 轮对话",
+        "MiMo Studio：66 次文件快照 / 365 项产物",
+        "DSH 只认自己的一种会话格式，不兼容任何导出",
+        "目标：旧对话变成 DSH 能加载、侧栏能看到的会话"
+      ],
+      "narration": "原始数据体量大、又在应用私有目录里，所以在原地抽取，只迁移有实质内容的会话。"
+    },
+    {
+      "id": "03-flow",
+      "kind": "flow",
+      "duration": 8,
+      "kicker": "原理 2/6 · 迁移流水线",
+      "title": "抽取 → 生成 → 校验 → 注册",
+      "steps": [
+        "抽取源记录",
+        "生成事件流",
+        "按帧压缩",
+        "逐条校验",
+        "生成会话缓存",
+        "注册工作区"
+      ],
+      "narration": "关键在中间三步：会话文件由 zstd 帧串成，格式不对 DSH 会直接拒绝加载。"
+    },
+    {
+      "id": "04-format",
+      "kind": "code",
+      "duration": 8,
+      "kicker": "原理 3/6 · 磁盘格式",
+      "title": "session.v4.jsonl.zstd",
+      "lines": [
+        "frame #0  {\"type\":\"session\",\"version\":4,\"id\":\"session-…\",\"cwd\":\"<workspace>\",…}   <- header only",
+        "frame #1  {\"type\":\"permission/preset\",\"seq\":0,…}",
+        "frame #2  {\"type\":\"sandbox/mode\",\"seq\":1,…}",
+        "frame #3  {\"type\":\"approval/policy\",\"seq\":2,…}",
+        "frame #4  {\"type\":\"session/end-seed\",\"seq\":3,…}",
+        "…         turn/start · step/start · user/message · assistant/message · session/title · turn/end"
+      ],
+      "note": "每个 zstd 帧装一行 JSON：header 单独一帧，其余事件各占一帧，seq 从 0 连续递增。",
+      "narration": "DSH 不把整段对话压成一帧：帧边界必须与行一一对应，这是导入最容易踩的格式门槛。"
+    },
+    {
+      "id": "05-rules-a",
+      "kind": "list",
+      "duration": 8,
+      "kicker": "原理 4/6 · 硬性要求 1/2",
+      "title": "四条最常踩的坑",
+      "bullets": [
+        "① header.cwd 用单反斜杠，且与工作区账本逐字符一致",
+        "② session id 要写进对应工作区的 sessionIds",
+        "③ 显示名由 session/title 事件决定，不是文件名",
+        "④ 事件 seq 从 0 连续递增，跳号直接报 seq gap"
+      ],
+      "narration": "前两条决定会话能不能出现在正确的工作区，后两条决定它能不能被加载。"
+    },
+    {
+      "id": "06-rules-b",
+      "kind": "list",
+      "duration": 8,
+      "kicker": "原理 4/6 · 硬性要求 2/2",
+      "title": "多轮会话还有三条硬约束",
+      "bullets": [
+        "⑤ 第一个 zstd 帧必须恰好只装 header 一行",
+        "⑥ 每一轮自成一对 turn/start → turn/end，turn 必须 1..N 递增",
+        "⑦ assistant/message 必须带完整模型流 stream",
+        "⑧ 侧栏还需要投影缓存 projcache；agentPreset 要在 profile 组装范围内"
+      ],
+      "narration": "旧导入 9 条里 8 条坏在第 ⑥ 条：单轮会话看不出问题，多轮才被校验器抓出来。"
+    },
+    {
+      "id": "07-legacy",
+      "kind": "terminal",
+      "duration": 12,
+      "kicker": "实测 1/6 · 复现旧导入",
+      "title": "8 条多轮会话被逐条拒绝",
+      "command": "node live/validate-all.mjs --home <tmp> --dsh <cli>",
+      "captures": [
+        "02-validate-legacy.txt"
+      ],
+      "narration": "旧布局每轮都写 turn/start{turn:1}：8 条多轮会话全部报 turn/start does not open the expected turn，只有单轮那条通过。"
+    },
+    {
+      "id": "08-repair",
+      "kind": "terminal",
+      "duration": 11,
+      "kicker": "实测 2/6 · 修 R9",
+      "title": "逐轮配对后 9/9 通过",
+      "command": "node live/repair-turns.mjs --home <tmp>",
+      "captures": [
+        "03-repair.txt",
+        "04-validate-fixed.txt"
+      ],
+      "narration": "第 k 轮固定发 turn/start{turn:k} → step/start → 消息 → step/end → turn/end{k}，编号 1..N；复查 9 条全部被接受。"
+    },
+    {
+      "id": "09-assistant",
+      "kind": "terminal",
+      "duration": 11,
+      "kicker": "实测 3/6 · 补 AI 回复",
+      "title": "带上合规 stream，仍然 9/9",
+      "command": "node live/rebuild-with-assistant.mjs --home <tmp>",
+      "captures": [
+        "05-assistant.txt",
+        "06-validate-assistant.txt"
+      ],
+      "narration": "用仓库里的 build-dsh-session.mjs 重建：每条 user/message 后补 assistant/message，带 block-start → text-delta → block-end → finish 四段流。"
+    },
+    {
+      "id": "10-selftest",
+      "kind": "terminal",
+      "duration": 11,
+      "kicker": "实测 4/6 · 技能自测",
+      "title": "selftest 全链路 19 项",
+      "command": "node scripts/selftest.mjs --dsh <cli>",
+      "captures": [
+        "07-selftest.txt"
+      ],
+      "narration": "在临时 DSH home 里跑通：隐私扫描 → 生成 → 解码 → 列表 → 离线校验 → 反向用例 → 投影缓存 → 真实加载器。"
+    },
+    {
+      "id": "11-verify",
+      "kind": "terminal",
+      "duration": 10,
+      "kicker": "实测 5/6 · 技能校验器",
+      "title": "单条会话 11 项检查全 PASS",
+      "command": "node scripts/verify-dsh-session.mjs --in <tmp>/session.v4.jsonl.zstd --require-cache --home <tmp> --dsh <cli> --run-dsh",
+      "captures": [
+        "08-cache.txt",
+        "09-verify.txt"
+      ],
+      "narration": "离线 10 项加真实加载器 1 项：帧结构、seq 连续、assistant stream、标题 messageSeqs、投影缓存齐备。"
+    },
+    {
+      "id": "12-privacy",
+      "kind": "terminal",
+      "duration": 8,
+      "kicker": "实测 6/6 · 隐私",
+      "title": "扫描 0 命中",
+      "command": "node privacy-scan.mjs .",
+      "captures": [
+        "10-privacy.txt"
+      ],
+      "narration": "成片与仓库文本先脱敏再落盘：用户名与临时路径换成 <workspace>/<tmp>，真实会话 id 换成 session-<id>。"
+    },
+    {
+      "id": "13-outro",
+      "kind": "list",
+      "duration": 7,
+      "kicker": "收尾",
+      "title": "可复跑、可校验、可迁移",
+      "bullets": [
+        "demo/render.ps1 —— 一条命令重跑整条证据链",
+        "demo/live/*.mjs —— 复现 / 修复 / 补回复 / 校验 / 采集",
+        "demo/captured/*.txt —— 现场真实 stdout（已脱敏）",
+        "隐私：用户名 → <workspace>，会话 id → session-<id>"
+      ],
+      "narration": "成片 1920x1080、30fps、H.264，所有终端输出都是本机现场产生的。"
+    }
+  ]
+}

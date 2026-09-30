@@ -1,0 +1,7 @@
+[fixture] home      <tmp>\dsh-home
+[fixture] cwd       <tmp>\workspace
+[fixture] sessions  9  (8 multi-round + 1 single-round)
+[fixture] layout    legacy: every round repeats turn/start {turn:1}
+[fixture] ids       session-00000000-0000-4000-8000-000000000001 .. 009
+[fixture] rounds    27 rounds across 9 sessions
+[fixture] wrote     9 x session.v4.jsonl.zstd

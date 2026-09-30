@@ -1,0 +1,15 @@
+﻿*.mp4
+*.png
+*.jpg
+*.zip
+*.log
+.DS_Store
+Thumbs.db
+node_modules/
+__pycache__/
+!demo/demo.mp4
+# 临时脚本/数据一律不入库
+_*.mjs
+_*.json
+demo/clips/
+demo/frames/

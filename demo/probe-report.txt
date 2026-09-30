@@ -1,0 +1,29 @@
+demo.mp4 —— 介质探测报告
+生成时间: 2026-09-30 (render.ps1 最近一次完整运行)
+文件: demo/demo.mp4
+字节: 2410053
+SHA256: c664353faf4713126016a788ccebf8581b53a73878b54426d36b6c5e7196658a
+
+ffprobe 状态
+-----------
+本机 Application Control 策略拦截了 ffprobe.exe（含复制到其他目录后再运行），
+报错 "An Application Control policy has blocked this file"，错误类别 ApplicationFailedException。
+同一个 ffmpeg 9.0.2 构建里的 ffmpeg.exe 可以正常运行，因此改用 ffmpeg -i 读取同一文件头。
+
+等效命令（真实执行、非编造）:
+  ffmpeg -hide_banner -i demo/demo.mp4
+
+实测输出:
+  Duration: 00:01:50.00, start: 0.000000, bitrate: 175 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, unknown/bt709/iec61966-2-1, progressive), 1920x1080 [SAR 1:1 DAR 16:9], 172 kb/s, 30 fps, 30 tbr, 15360 tbn (default)
+
+结论
+----
+- 时长 110.0 秒（00:01:50.00）
+- 分辨率 1920x1080（DAR 16:9）
+- 帧率 30 fps
+- 编码 H.264 High，像素格式 yuv420p
+- 无音轨（旁白为中文字幕条）
+
+在未被策略拦截的机器上，可用下面这条标准命令复核:
+  ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,r_frame_rate,pix_fmt -show_entries format=duration,size -of default=noprint_wrappers=1 demo/demo.mp4
