@@ -1,0 +1,5 @@
+[repair] sessions  9
+[repair] rounds    27  (each round = turn/start -> turn/end, turn 1..N)
+[repair] titles    9 x session/title kept, messageSeqs re-pointed
+[repair] seq       0..N-1 per session, reframed 1 header + 1 event/frame
+[repair] wrote     9 x session.v4.jsonl.zstd

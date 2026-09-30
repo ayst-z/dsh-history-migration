@@ -1,0 +1,10 @@
+[validate] session-...-001  FAIL  rejected (format error)  SessionFormatError: turn/start does not open the expected turn
+[validate] session-...-002  FAIL  rejected (format error)  SessionFormatError: turn/start does not open the expected turn
+[validate] session-...-003  FAIL  rejected (format error)  SessionFormatError: turn/start does not open the expected turn
+[validate] session-...-004  FAIL  rejected (format error)  SessionFormatError: turn/start does not open the expected turn
+[validate] session-...-005  FAIL  rejected (format error)  SessionFormatError: turn/start does not open the expected turn
+[validate] session-...-006  FAIL  rejected (format error)  SessionFormatError: turn/start does not open the expected turn
+[validate] session-...-007  FAIL  rejected (format error)  SessionFormatError: turn/start does not open the expected turn
+[validate] session-...-008  FAIL  rejected (format error)  SessionFormatError: turn/start does not open the expected turn
+[validate] session-...-009  PASS  accepted (format ok; preset not composed by one-shot runner)
+[validate] sessions 9 | PASS 1 | FAIL 8
