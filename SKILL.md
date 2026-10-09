@@ -1,6 +1,6 @@
 ---
 name: dsh-history-migration
-description: 把其它应用的对话历史（VS Code / Copilot Chat、MiMo Studio 等）迁移成 DSH 能加载、能在侧栏正确显示的本地会话。涵盖 DSH 会话存储契约（仅追加事件日志 + header 元数据 + 投影缓存三件套）、8 条硬性格式要求及各自的报错判定、以及可复用的抽取/生成/解码/校验流程。当用户说「迁移对话历史、导入会话、跨平台记录、MiMo/VS Code 历史、DSH 会话、把旧记录搬进 DSH」时使用。
+description: 把其它应用的对话历史（VS Code / Copilot Chat、MiMo Studio、opencode 等）迁移成 DSH 能加载、能在侧栏正确显示的本地会话。涵盖 DSH 会话存储契约（仅追加事件日志 + header 元数据 + 投影缓存三件套）、8 条硬性格式要求及各自的报错判定、以及可复用的抽取/生成/解码/校验流程。当用户说「迁移对话历史、导入会话、跨平台记录、MiMo/VS Code/opencode 历史、DSH 会话、把旧记录搬进 DSH」时使用。
 ---
 
 # DSH 历史迁移
@@ -13,7 +13,7 @@ description: 把其它应用的对话历史（VS Code / Copilot Chat、MiMo Stud
 | \<workspace\> | 目标工作区目录的**规范绝对路径**（等价于 fs.realpath 的结果） |
 | \<session-id\> | DSH 会话 id，形如 session-\<uuid\>，落盘后即不可变 |
 | \<chat-session-id\> | 来源应用的会话标识（VS Code 会话 id / MiMo 记录 id） |
-| \<source-app\> | 来源应用（VS Code Copilot Chat / MiMo Studio / 其它） |
+| \<source-app\> | 来源应用（VS Code Copilot Chat / MiMo Studio / opencode / 其它） |
 | \<工具链目录\> | 本技能 scripts/ 所在目录 |
 
 ## 核心主张
@@ -30,7 +30,7 @@ description: 把其它应用的对话历史（VS Code / Copilot Chat、MiMo Stud
 
 ## 总体流程
 
-1. **抽取**（读来源、不改来源）：用 \<工具链目录\>/export-vscode-chat.mjs 或 export-mimo.mjs 把每个来源会话导出为结构化 JSON（会话 id + 时间 + 逐轮 user/assistant）。来源目录只读。
+1. **抽取**（读来源、不改来源）：用 \<工具链目录\>/export-vscode-chat.mjs、export-mimo.mjs 或 export-opencode.mjs 把每个来源会话导出为结构化 JSON（会话 id + 时间 + 逐轮 user/assistant）。来源目录只读。
 2. **选定落点**：确定目标 \<workspace\>，并拿到它的规范路径。规范化只走 realpath 一套规则（尾斜杠、..、符号链接都被解析），字符串比较即唯一性判定。
 3. **生成会话**：build-dsh-session.mjs 生成 session-\<uuid\> 的事件流——header 一行 + 事件各一帧；事件只保留 user/message，seq 从 0 连续；末尾以 session/title 定名。
 4. **补投影缓存**：generate-dsh-cache.mjs 写 storages/session_projcache/sessions/\<session-id\>.json（version 7，identity + rows）。

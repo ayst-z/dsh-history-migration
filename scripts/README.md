@@ -1,7 +1,7 @@
 # DSH history-migration scripts
 
 Reusable, parameterised tooling for migrating chat history (VS Code Copilot Chat,
-MiMo Studio) into DeepSeek Harness (DSH) sessions, plus inspection and validation
+MiMo Studio, opencode) into DeepSeek Harness (DSH) sessions, plus inspection and validation
 helpers for DSH session logs.
 
 Every path is passed on the command line; no personal path, user name, session id or
@@ -11,7 +11,7 @@ session content is embedded in any script.
 
 | Tool | Version | Notes |
 |---|---|---|
-| Node.js | 24.x (tested on 24.19.0) | needs built-in `node:zlib` Zstandard (`zstdCompressSync`/`zstdDecompressSync`) and, for `export-mimo.mjs`, `node:sqlite` |
+| Node.js | 24.x (tested on 24.19.0) | needs built-in `node:zlib` Zstandard (`zstdCompressSync`/`zstdDecompressSync`) and, for `export-mimo.mjs` and `export-opencode.mjs`, `node:sqlite` |
 | Python | 3.14 (optional) | not required by these scripts; only needed if you prefer the original Python extractors |
 | DSH | the desktop install that ships the `dsh` launcher | only for the optional live validation step |
 
@@ -71,6 +71,17 @@ user text and assistant markdown. Writes `vscode-sessions.json` (machine-readabl
 Writes `版本库提交记录.md` (git log), `开发事务.md` (`role_chat_record`) and
 `产物清单.md` (`artifact`). Uses Node's built-in `node:sqlite` in read-only mode; both
 databases are optional via `--skip-*`.
+
+### export-opencode.mjs
+
+    node export-opencode.mjs --db <opencode.db> --out <outDir> [--top-only] [--session <id>]
+
+Reads opencode's local SQLite store (copy the db first while opencode is running) and
+writes one `<session-id>.turns.json` per selected session plus `opencode-index.json`
+(title / project root / timestamps / turn counts). `--top-only` keeps parent-less
+sessions and skips forked sub-task sessions; `--session` picks explicit ids. user
+text becomes `turn.user`, assistant text parts become `turn.assistant` (reasoning,
+tool calls and idle/synthetic/compaction records are skipped).
 
 ### build-dsh-session.mjs
 

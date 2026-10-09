@@ -8,7 +8,7 @@
 
 | 能力 | 说明 |
 |---|---|
-| **三条来源** | ① VS Code Copilot Chat 本地 `chatSessions`（最完整，含 AI 回复）② MiMo Studio 桌面版（文件快照 / 产物 / 任务卡 / 日志元数据）③ MiMo AI Studio 网页版（userscript 导出，拿到正文的唯一路径） |
+| **四条来源** | ① VS Code Copilot Chat 本地 `chatSessions`（最完整，含 AI 回复）② MiMo Studio 桌面版（文件快照 / 产物 / 任务卡 / 日志元数据）③ MiMo AI Studio 网页版（userscript 导出，拿到正文的唯一路径）④ opencode 本地 SQLite（`opencode.db` 直读 user/assistant 正文，`--top-only` 只取主会话） |
 | **抽取 → 生成 → 登记 → 校验** | 一条流水线把任意来源变成 DSH 可打开的会话 |
 | **自带校验器** | `dsh headless --session-id <id>` 即可判定格式，不依赖 UI |
 | **自带隐私扫描器** | `privacy-scan.mjs` 交付前一键自查（真实用户名/路径/会话 id/密钥） |
@@ -22,6 +22,7 @@
 # 0) 抽取
 node scripts/export-vscode-chat.mjs <chatSessions 目录> out/            # VS Code
 node scripts/import-mimo-export.mjs <mimo导出.md> --out out/            # MiMo 网页导出（自适应 4 种格式）
+node scripts/export-opencode.mjs --db <opencode.db> --out out/ --top-only # opencode 本地库（先拷贝 db 再读）
 
 # 1) 生成 DSH 会话（out/ 里是 [{user, assistant}] 的 turns.json）
 node scripts/build-dsh-session.mjs --home "$env:USERPROFILE\.dsh" --cwd "<工作区路径>" \
@@ -38,7 +39,7 @@ node scripts/verify-dsh-session.mjs --in <session.v4.jsonl.zstd> --require-cache
 
 | 步骤 | 脚本 | 产出 |
 |---|---|---|
-| 抽取 | `export-vscode-chat.mjs` / `import-mimo-export.mjs` / `export-mimo.mjs` | `turns.json`、`vscode-sessions.json`、MiMo 三份 Markdown |
+| 抽取 | `export-vscode-chat.mjs` / `import-mimo-export.mjs` / `export-mimo.mjs` / `export-opencode.mjs` | `turns.json`、`vscode-sessions.json`、MiMo 三份 Markdown、`<session-id>.turns.json` + `opencode-index.json` |
 | 生成 | `build-dsh-session.mjs` | `session.v4.jsonl.zstd`（首帧仅 header、每事件一帧、seq 连续、逐轮 turn 配对） |
 | 登记 | `generate-dsh-cache.mjs` + 手改 `workspace.json` 的 `sessionIds` | 侧栏可见 |
 | 校验 | `verify-dsh-session.mjs` / `list-dsh-sessions.mjs` / `selftest.mjs` | PASS / FAIL |
@@ -59,7 +60,7 @@ node scripts/verify-dsh-session.mjs --in <session.v4.jsonl.zstd> --require-cache
 
 ## 可扩展性
 
-1. **接新来源**：只要产出 `[{user, assistant}]` 的 `turns.json` 即可接入流水线。参照 `import-mimo-export.mjs`——它是纯解析器，加一种排版只需加一个 `parseXxx()`。
+1. **接新来源**：只要产出 `[{user, assistant}]` 的 `turns.json` 即可接入流水线。参照 `import-mimo-export.mjs`——它是纯解析器，加一种排版只需加一个 `parseXxx()`；直读本地数据库的完整范例见 `export-opencode.mjs`（`node:sqlite` 只读打开）。
 2. **加新检查**：`verify-dsh-session.mjs` 与 `selftest.mjs` 的检查项都是独立断言，照抄一条即可扩展（例如「必须带 tool/result 配对」）。
 3. **接新模型提供商**：`mimo/cordis.patch.yml` 是模板，改 `providers.<id>` 的 `baseURL` / `api` / `models` 就能接任意 OpenAI 兼容端点；DSH 侧落在 `$DSH_HOME/profiles/<profile>/cordis.patch.yml`。
 4. **换目标环境**：所有脚本的 `--home` / `--cwd` / `--dsh` 全部参数化，不写死路径，可在 CI 或别的机器上跑。

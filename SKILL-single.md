@@ -1,6 +1,6 @@
 ---
 name: history-migration-to-dsh
-description: 把外部平台的历史对话迁移进 DeepSeek Harness（DSH）。覆盖三条来源路径——VS Code Copilot Chat 本地 chatSessions（可完整导出，含 AI 回复）、MiMo Studio 桌面版（本地只有文件快照/产物/任务卡与日志元数据，对话正文本地不落地）、MiMo AI Studio 网页版（用 userscript 导出，是拿到 MiMo 正文的唯一路径）——以及 DSH 会话日志的全部硬性格式要求、校验器用法与失败对照。当用户提到 迁移对话历史、导入会话到 DSH、跨平台记录、VS Code/MiMo 历史、把旧对话变成 DSH 会话、history migration 时使用。
+description: 把外部平台的历史对话迁移进 DeepSeek Harness（DSH）。覆盖四条来源路径——VS Code Copilot Chat 本地 chatSessions（可完整导出，含 AI 回复）、MiMo Studio 桌面版（本地只有文件快照/产物/任务卡与日志元数据，对话正文本地不落地）、MiMo AI Studio 网页版（用 userscript 导出，是拿到 MiMo 正文的唯一路径）、opencode 本地 SQLite（opencode.db 只读直抽 user/assistant 正文）——以及 DSH 会话日志的全部硬性格式要求、校验器用法与失败对照。当用户提到 迁移对话历史、导入会话到 DSH、跨平台记录、VS Code/MiMo/opencode 历史、把旧对话变成 DSH 会话、history migration 时使用。
 ---
 
 # 外部对话历史 → DSH 迁移（单文件技能）
@@ -9,13 +9,14 @@ description: 把外部平台的历史对话迁移进 DeepSeek Harness（DSH）�
 
 DSH 的会话是**仅追加事件日志**：`$DSH_HOME/sessions/<工作区编码>/session-<id>/session.v4.jsonl.zstd`（每个事件一个 zstd 帧）。它**不是聊天记录的转储**，而是可回放的模型交互日志——所以「导入」= 造出合法事件序列，且必须同时满足账本与投影缓存两处登记。
 
-## 三条来源路径
+## 四条来源路径
 
 | 来源 | 本地能拿到什么 | 结论 |
 |---|---|---|
 | **VS Code Copilot Chat** | `%APPDATA%\Code\User\workspaceStorage\<ws>\chatSessions\*.jsonl`：请求/回复全文、thinking、toolInvocationSerialized、textEditGroup（代码）| ✅ 可完整迁移（含 AI 回复） |
 | **MiMo Studio 桌面版** | `git-version-store`（文件快照 66 次）、`db\artifacts.db`(365)、`db\rolechat.db`(8)、`logs\*.log`（只有 sessionId/assistantId 等元数据）；`evolve-transcript.db` **0 行** | ⚠️ 对话正文**本地不落地**（在服务端）。只能迁旁证 + 从日志统计出会话清单 |
 | **MiMo AI Studio 网页版** | 页面 DOM | ✅ 用 userscript `yl985211/mimo-export`（GPLv3）导出 HTML/MD/TXT；`scripts/import-mimo-export.mjs` **自适应四种格式**（`###` 标题式 / `**角色**` 粗体式 / HTML `message-row` 式 / 无标记按 `---` 交替），产出 turns.json 直接喂给 builder |
+| **opencode** | 本地 SQLite `opencode.db`（`session_v2` 会话表 + `session_message` 消息表） | ✅ `scripts/export-opencode.mjs` 只读直抽 user/assistant 正文 → `<session-id>.turns.json`；`--top-only` 只取主会话、跳过 fork 子任务 |
 
 ## DSH 会话格式：10 条硬性要求
 
@@ -37,6 +38,7 @@ DSH 的会话是**仅追加事件日志**：`$DSH_HOME/sessions/<工作区编码
 ```bash
 node scripts/export-vscode-chat.mjs <chatSessions 目录> out/          # 抽 VS Code 原始会话
 node scripts/import-mimo-export.mjs <mimo导出.md> --out out/          # 抽 MiMo 网页导出（mimo-export 产物 → turns.json）
+node scripts/export-opencode.mjs --db <opencode.db> --out out/ --top-only  # 抽 opencode 本地库（先拷贝 db 再读）
 node scripts/build-dsh-session.mjs --home "$DSH_HOME" --cwd "<工作区>" \
      --title "<标题>" --input turns.json                              # turns.json = [{user, assistant}]
 node scripts/generate-dsh-cache.mjs --home "$DSH_HOME" --session <id> # 补投影缓存
