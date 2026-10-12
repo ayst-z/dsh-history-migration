@@ -1,4 +1,4 @@
-﻿*.mp4
+*.mp4
 *.png
 *.jpg
 *.zip
@@ -13,3 +13,4 @@ _*.mjs
 _*.json
 demo/clips/
 demo/frames/
+demo/.vendor/
