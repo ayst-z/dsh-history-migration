@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>DSH history migration - three.js interstitial</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #04060c; overflow: hidden; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<script type="module">
+import * as THREE from '../.vendor/node_modules/three/build/three.module.js';
+
+const q = new URLSearchParams(location.search);
+const W = parseInt(q.get('w') || '1920', 10);
+const H = parseInt(q.get('h') || '1080', 10);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(W, H, false);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x04060c);
+scene.fog = new THREE.FogExp2(0x04060c, 0.035);
+
+const camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 300);
+camera.position.set(0, 0, 12);
+
+const overlayScene = new THREE.Scene();
+const overlayCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+const overlayMat = new THREE.MeshBasicMaterial({ color: 0x04060c, transparent: true, opacity: 0, depthTest: false });
+overlayScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), overlayMat));
+
+const vignette = new THREE.Mesh(
+  new THREE.PlaneGeometry(2, 2),
+  new THREE.MeshBasicMaterial({ map: makeVignette(), transparent: true, opacity: 0.85, depthTest: false, blending: THREE.MultiplyBlending })
+);
+overlayScene.add(vignette);
+
+function makeVignette() {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 288;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(256, 144, 60, 256, 144, 330);
+  grd.addColorStop(0, '#ffffff');
+  grd.addColorStop(0.62, '#d8d8d8');
+  grd.addColorStop(1, '#1a1a1a');
+  g.fillStyle = grd; g.fillRect(0, 0, 512, 288);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+const FONT = '"Microsoft YaHei","Segoe UI",system-ui,sans-serif';
+const MONO = '"Cascadia Mono","Consolas",monospace';
+
+function textTexture(text, opt) {
+  const o = Object.assign({ size: 120, weight: 700, color: '#eaf6ff', glow: '#38c8ff', pad: 46, font: FONT, lineGap: 1.28, align: 'center', letter: 0 }, opt || {});
+  const lines = String(text).split('\n');
+  const meas = document.createElement('canvas').getContext('2d');
+  meas.font = o.weight + ' ' + o.size + 'px ' + o.font;
+  let w = 0;
+  for (const l of lines) w = Math.max(w, meas.measureText(l).width);
+  const lineH = o.size * o.lineGap;
+  const c = document.createElement('canvas');
+  c.width = Math.ceil(w + o.pad * 2);
+  c.height = Math.ceil(lineH * lines.length + o.pad * 2);
+  const g = c.getContext('2d');
+  g.font = o.weight + ' ' + o.size + 'px ' + o.font;
+  g.textBaseline = 'middle';
+  g.textAlign = o.align;
+  g.shadowColor = o.glow;
+  g.shadowBlur = o.size * 0.42;
+  g.fillStyle = o.color;
+  lines.forEach((l, i) => {
+    const x = o.align === 'center' ? c.width / 2 : (o.align === 'right' ? c.width - o.pad : o.pad);
+    g.fillText(l, x, o.pad + lineH * (i + 0.5));
+  });
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  t.userData.aspect = c.width / c.height;
+  return t;
+}
+
+function textPlane(text, opt) {
+  const o = Object.assign({ width: 5 }, opt || {});
+  const tex = textTexture(text, opt);
+  const m = new THREE.Mesh(
+    new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: o.opacity === undefined ? 1 : o.opacity, blending: THREE.AdditiveBlending })
+  );
+  m.scale.set(o.width, o.width / tex.userData.aspect, 1);
+  return m;
+}
+
+function panelTexture(label, opt) {
+  const o = Object.assign({ color: '#7ef0c0', bg: 'rgba(6,20,28,0.92)', border: 'rgba(90,220,255,0.85)', size: 54, pad: 44, font: MONO, radius: 22 }, opt || {});
+  const meas = document.createElement('canvas').getContext('2d');
+  meas.font = o.size + 'px ' + o.font;
+  const w = meas.measureText(label).width;
+  const c = document.createElement('canvas');
+  c.width = Math.ceil(w + o.pad * 2);
+  c.height = Math.ceil(o.size * 1.9);
+  const g = c.getContext('2d');
+  const r = o.radius;
+  g.beginPath();
+  g.moveTo(r, 0); g.lineTo(c.width - r, 0); g.quadraticCurveTo(c.width, 0, c.width, r);
+  g.lineTo(c.width, c.height - r); g.quadraticCurveTo(c.width, c.height, c.width - r, c.height);
+  g.lineTo(r, c.height); g.quadraticCurveTo(0, c.height, 0, c.height - r);
+  g.lineTo(0, r); g.quadraticCurveTo(0, 0, r, 0); g.closePath();
+  g.fillStyle = o.bg; g.fill();
+  g.lineWidth = 3; g.strokeStyle = o.border;
+  g.shadowColor = o.border; g.shadowBlur = 18;
+  g.stroke();
+  g.shadowBlur = 0;
+  g.font = o.size + 'px ' + o.font;
+  g.textBaseline = 'middle';
+  g.textAlign = 'center';
+  g.fillStyle = o.color;
+  g.fillText(label, c.width / 2, c.height / 2 + 2);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  t.userData.aspect = c.width / c.height;
+  return t;
+}
+
+function chip(label, opt) {
+  const o = Object.assign({ width: 5.4 }, opt || {});
+  const tex = panelTexture(label, opt);
+  const m = new THREE.Mesh(
+    new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: o.opacity === undefined ? 1 : o.opacity })
+  );
+  m.scale.set(o.width, o.width / tex.userData.aspect, 1);
+  m.userData.baseOpacity = o.opacity === undefined ? 1 : o.opacity;
+  return m;
+}
+
+/* ---------------- digital rain ---------------- */
+function glyphAtlas() {
+  const chars = ('01ABCDEFabcdef<>{}[]/\\=+*#$' + '0123456789').split('');
+  const cols = 8, cell = 64;
+  const c = document.createElement('canvas');
+  c.width = cols * cell; c.height = cols * cell;
+  const g = c.getContext('2d');
+  g.fillStyle = '#000'; g.fillRect(0, 0, c.width, c.height);
+  g.font = '700 46px ' + MONO;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (let i = 0; i < cols * cols; i++) {
+    const ch = chars[i % chars.length];
+    const x = (i % cols) * cell + cell / 2;
+    const y = Math.floor(i / cols) * cell + cell / 2;
+    g.shadowColor = '#6cffb0'; g.shadowBlur = 10;
+    g.fillStyle = '#c9ffe4';
+    g.fillText(ch, x, y);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+const RAIN_N = 900;
+const rainSpanY = 46, rainSpanX = 62, rainSpanZ = 40;
+const rainGeo = new THREE.BufferGeometry();
+{
+  const pos = new Float32Array(RAIN_N * 3);
+  const spd = new Float32Array(RAIN_N);
+  const gly = new Float32Array(RAIN_N);
+  const siz = new Float32Array(RAIN_N);
+  let seed = 1337;
+  const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+  for (let i = 0; i < RAIN_N; i++) {
+    pos[i * 3] = (rnd() - 0.5) * rainSpanX;
+    pos[i * 3 + 1] = rnd() * rainSpanY;
+    pos[i * 3 + 2] = (rnd() - 0.5) * rainSpanZ - 8;
+    spd[i] = 2.2 + rnd() * 6.5;
+    gly[i] = Math.floor(rnd() * 64);
+    siz[i] = 0.5 + rnd() * 1.15;
+  }
+  rainGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  rainGeo.setAttribute('aSpeed', new THREE.BufferAttribute(spd, 1));
+  rainGeo.setAttribute('aGlyph', new THREE.BufferAttribute(gly, 1));
+  rainGeo.setAttribute('aSize', new THREE.BufferAttribute(siz, 1));
+}
+const rainMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uTime: { value: 0 },
+    uSpan: { value: rainSpanY },
+    uAtlas: { value: glyphAtlas() },
+    uOpacity: { value: 0.55 },
+    uTint: { value: new THREE.Color(0x4fe0a8) }
+  },
+  vertexShader: [
+    'uniform float uTime; uniform float uSpan;',
+    'attribute float aSpeed; attribute float aGlyph; attribute float aSize;',
+    'varying float vGlyph; varying float vFade;',
+    'void main() {',
+    '  vGlyph = aGlyph;',
+    '  vec3 p = position;',
+    '  p.y = mod(p.y - uTime * aSpeed, uSpan) - uSpan * 0.5;',
+    '  vec4 mv = modelViewMatrix * vec4(p, 1.0);',
+    '  gl_PointSize = aSize * (330.0 / max(0.001, -mv.z));',
+    '  vFade = clamp(1.0 - (-mv.z) / 70.0, 0.12, 1.0);',
+    '  gl_Position = projectionMatrix * mv;',
+    '}'
+  ].join('\n'),
+  fragmentShader: [
+    'uniform sampler2D uAtlas; uniform float uOpacity; uniform vec3 uTint;',
+    'varying float vGlyph; varying float vFade;',
+    'void main() {',
+    '  float cols = 8.0;',
+    '  vec2 cell = vec2(mod(vGlyph, cols), floor(vGlyph / cols));',
+    '  vec2 uv = (cell + vec2(gl_PointCoord.x, gl_PointCoord.y)) / cols;',
+    '  vec4 t = texture2D(uAtlas, uv);',
+    '  if (t.a < 0.08) discard;',
+    '  gl_FragColor = vec4(uTint, t.a * uOpacity * vFade);',
+    '}'
+  ].join('\n'),
+  transparent: true,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending
+});
+const rain = new THREE.Points(rainGeo, rainMat);
+scene.add(rain);
+
+/* ---------------- floor + dust ---------------- */
+const grid = new THREE.GridHelper(90, 46, 0x1b6f8f, 0x0d3946);
+grid.position.y = -6;
+grid.material.transparent = true;
+grid.material.opacity = 0.5;
+scene.add(grid);
+
+const dustGeo = new THREE.BufferGeometry();
+{
+  const n = 420;
+  const p = new Float32Array(n * 3);
+  let seed = 99;
+  const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+  for (let i = 0; i < n; i++) {
+    p[i * 3] = (rnd() - 0.5) * 46;
+    p[i * 3 + 1] = (rnd() - 0.5) * 24;
+    p[i * 3 + 2] = (rnd() - 0.5) * 40 - 6;
+  }
+  dustGeo.setAttribute('position', new THREE.BufferAttribute(p, 3));
+}
+const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({ color: 0x6fd6ff, size: 0.085, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false }));
+scene.add(dust);
+
+/* ---------------- glow sweep ---------------- */
+function sweepTexture() {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 32;
+  const g = c.getContext('2d');
+  const grd = g.createLinearGradient(0, 0, 256, 0);
+  grd.addColorStop(0, 'rgba(0,0,0,0)');
+  grd.addColorStop(0.5, 'rgba(150,240,255,0.85)');
+  grd.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, 256, 32);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+const sweep = new THREE.Mesh(new THREE.PlaneGeometry(26, 0.55), new THREE.MeshBasicMaterial({ map: sweepTexture(), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+sweep.position.z = 0.6;
+scene.add(sweep);
+
+/* ---------------- scenes ---------------- */
+function fadeGroup(g, a) {
+  g.traverse(o => { if (o.material) { if (o.userData.baseOpacity === undefined) o.userData.baseOpacity = o.material.opacity; o.material.opacity = o.userData.baseOpacity * a; } });
+  g.visible = a > 0.001;
+}
+
+// title
+const titleScene = new THREE.Group();
+{
+  const t1 = textPlane('DSH 历史迁移', { width: 9.2, size: 150, weight: 700, color: '#f2fbff', glow: '#39c8ff' });
+  t1.position.set(0, 1.25, 0);
+  const t2 = textPlane('把对话历史迁进 DSH · 真机实录', { width: 7.0, size: 78, weight: 500, color: '#bfe9ff', glow: '#1c8fd0' });
+  t2.position.set(0, -0.75, 0.2);
+  const t3 = textPlane('three.js 3D 过场 + gdigrab 真实软件实录', { width: 6.4, size: 56, weight: 400, color: '#7fd8c0', glow: '#1f8f6a', font: MONO });
+  t3.position.set(0, -2.15, 0.3);
+  titleScene.add(t1, t2, t3);
+}
+scene.add(titleScene);
+
+// pipeline
+const pipeScene = new THREE.Group();
+const pipeLabels = ['抽取源记录', '生成事件流', '按帧压缩', '逐条校验', '生成缓存', '注册工作区'];
+const slabs = [];
+{
+  const head = textPlane('抽取 → 生成 → 校验 → 注册', { width: 6.2, size: 92, weight: 700, color: '#f2fbff', glow: '#39c8ff' });
+  head.position.set(0, 3.0, 0);
+  pipeScene.add(head);
+  for (let i = 0; i < 6; i++) {
+    const slab = new THREE.Mesh(
+      new THREE.BoxGeometry(1.75, 1.75, 0.24),
+      new THREE.MeshStandardMaterial({ color: 0x0a2230, emissive: 0x0c3f52, emissiveIntensity: 0.6, metalness: 0.5, roughness: 0.35, transparent: true, opacity: 0.96 })
+    );
+    slab.position.set(-6.0 + i * 2.4, 0, 0);
+    const label = textPlane(pipeLabels[i], { width: 1.75, size: 64, weight: 600, color: '#dff6ff', glow: '#2fb6e0' });
+    label.position.set(slab.position.x, 0, 0.16);
+    const num = textPlane(String(i + 1), { width: 0.55, size: 90, weight: 700, color: '#8ef0c8', glow: '#28d29a', font: MONO });
+    num.position.set(slab.position.x - 0.6, 0.62, 0.16);
+    pipeScene.add(slab, label, num);
+    slabs.push(slab);
+  }
+  const note = textPlane('格式错的会话会被 DSH 加载器直接拒绝', { width: 6.0, size: 54, weight: 400, color: '#9fd8e8', glow: '#1d7fa0' });
+  note.position.set(0, -2.7, 0.2);
+  pipeScene.add(note);
+}
+scene.add(pipeScene);
+
+// mapping scene (conversation text -> DSH events)
+const mapScene = new THREE.Group();
+const mapChips = [];
+{
+  const head = textPlane('对话文本 → DSH 事件流', { width: 6.6, size: 92, weight: 700, color: '#f2fbff', glow: '#39c8ff' });
+  head.position.set(0, 3.05, 0);
+  mapScene.add(head);
+
+  const left = textPlane('会话文本', { width: 2.6, size: 60, weight: 600, color: '#8ef0c8', glow: '#28d29a' });
+  left.position.set(-4.6, 2.15, 0.2);
+  const right = textPlane('DSH 事件', { width: 2.6, size: 60, weight: 600, color: '#8ec9f0', glow: '#2f9fe0' });
+  right.position.set(3.4, 2.15, 0.2);
+  mapScene.add(left, right);
+
+  const b1 = chip('user: 把历史导入 DSH', { width: 4.6, size: 46, color: '#d9ffe9', border: 'rgba(80,230,170,0.85)' });
+  b1.position.set(-4.5, 0.9, 0.2);
+  const b2 = chip('assistant: 已生成 24 帧会话', { width: 4.9, size: 46, color: '#dcefff', border: 'rgba(90,200,255,0.85)' });
+  b2.position.set(-4.5, -0.45, 0.2);
+  mapScene.add(b1, b2);
+
+  const events = [
+    'turn/start  { turn: 1 }',
+    'step/start  { turn: 1, step: 1 }',
+    'user/message  content[].text',
+    'assistant/message  message + stream',
+    'step/end  { turn: 1, step: 1 }',
+    'turn/end  { reason: completed }'
+  ];
+  for (let i = 0; i < events.length; i++) {
+    const c = chip(events[i], { width: 5.3, size: 40, color: '#eaf7ff', border: 'rgba(120,190,255,0.75)', bg: 'rgba(8,16,30,0.92)' });
+    c.position.set(3.3, 1.35 - i * 0.78, 0.2);
+    mapScene.add(c);
+    mapChips.push(c);
+  }
+  const foot = textPlane('逐轮配对 · seq 从 0 连续 · assistant 需带完整 stream', { width: 7.4, size: 50, weight: 400, color: '#9fd8e8', glow: '#1d7fa0' });
+  foot.position.set(0, -3.15, 0.25);
+  mapScene.add(foot);
+}
+scene.add(mapScene);
+
+// outro
+const outroScene = new THREE.Group();
+{
+  const t1 = textPlane('9/9 通过 · 19/19 自测 · privacy 0', { width: 9.0, size: 120, weight: 700, color: '#f2fbff', glow: '#39c8ff' });
+  t1.position.set(0, 1.1, 0);
+  const t2 = textPlane('可复跑 · 可校验 · 可迁移', { width: 6.2, size: 74, weight: 500, color: '#a9e9ff', glow: '#1f8fbf' });
+  t2.position.set(0, -1.2, 0.2);
+  const t3 = textPlane('3840x2160@60 (upscaled) · H.264 · yuv420p', { width: 6.6, size: 46, weight: 400, color: '#7fd8c0', glow: '#1f8f6a', font: MONO });
+  t3.position.set(0, -2.6, 0.3);
+  outroScene.add(t1, t2, t3);
+}
+scene.add(outroScene);
+
+/* ---------------- timeline ---------------- */
+const T = {
+  titleIn: [0.0, 7.6],
+  pipe: [7.2, 18.8],
+  map: [18.4, 32.2],
+  outro: [31.8, 40.0]
+};
+const TOTAL = 40.0;
+
+function seg(t, a, b) { return t >= a && t <= b; }
+function smooth(x) { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); }
+function fadeWindow(t, a, b, edge) {
+  if (!seg(t, a, b)) return 0;
+  return Math.min(smooth((t - a) / edge), smooth((b - t) / edge));
+}
+
+function renderFrame(time) {
+  const t = Math.max(0, Math.min(TOTAL, time));
+  rainMat.uniforms.uTime.value = t;
+  rainMat.uniforms.uOpacity.value = 0.4 + 0.12 * Math.sin(t * 0.7);
+
+  // camera
+  const camZ = 12.4 - 0.35 * Math.sin(t * 0.23);
+  camera.position.x = 0.55 * Math.sin(t * 0.19);
+  camera.position.y = 0.28 * Math.sin(t * 0.31);
+  camera.position.z = camZ;
+  camera.lookAt(0, 0, 0);
+
+  // title
+  const aTitle = fadeWindow(t, T.titleIn[0] - 0.4, T.titleIn[1], 0.9);
+  fadeGroup(titleScene, aTitle);
+  if (aTitle > 0) {
+    const p = smooth((t - T.titleIn[0]) / 3.2);
+    titleScene.position.z = -7 + 7 * p;
+    titleScene.rotation.y = 0.16 * Math.sin(t * 0.6) * (1 - p) + 0.04 * Math.sin(t * 0.4);
+    titleScene.rotation.x = -0.05 * (1 - p);
+  }
+
+  // pipeline
+  const aPipe = fadeWindow(t, T.pipe[0], T.pipe[1], 0.8);
+  fadeGroup(pipeScene, aPipe);
+  if (aPipe > 0) {
+    const k = (t - T.pipe[0]) / (T.pipe[1] - T.pipe[0]);
+    pipeScene.position.x = (0.5 - k) * 5.2;
+    pipeScene.rotation.y = (0.5 - k) * 0.5;
+    for (let i = 0; i < slabs.length; i++) {
+      const on = Math.max(0, Math.min(1, (k * 6.4 - i) * 1.6));
+      const pulse = 0.55 + 1.5 * on + 0.25 * Math.sin(t * 3 + i);
+      slabs[i].material.emissiveIntensity = pulse;
+    }
+  }
+
+  // mapping
+  const aMap = fadeWindow(t, T.map[0], T.map[1], 0.7);
+  fadeGroup(mapScene, aMap);
+  if (aMap > 0) {
+    const k = (t - T.map[0]) / (T.map[1] - T.map[0]);
+    mapScene.position.z = -0.6 + 0.6 * smooth(k * 2.2);
+    for (let i = 0; i < mapChips.length; i++) {
+      const on = Math.max(0, Math.min(1, (k * 5.6 - i * 0.85) * 2.4));
+      const m = mapChips[i].material;
+      m.opacity = (0.32 + 0.68 * on) * (m.userData.baseOpacity === undefined ? 1 : m.userData.baseOpacity);
+      const glow = 1 + 0.02 * on * Math.sin(t * 6 + i);
+      mapChips[i].scale.x = mapChips[i].scale.x * 0 + (5.3 * (1 + 0.012 * on)) * (mapChips[i].scale.x / Math.abs(mapChips[i].scale.x || 5.3));
+    }
+  }
+
+  // outro
+  const aOut = fadeWindow(t, T.outro[0], T.outro[1], 0.8);
+  fadeGroup(outroScene, aOut);
+  if (aOut > 0) {
+    const p = smooth((t - T.outro[0]) / 2.4);
+    outroScene.position.z = -5 + 5 * p;
+    outroScene.rotation.y = 0.1 * Math.sin(t * 0.5);
+  }
+
+  // glow sweep passes once per scene
+  const sweeps = [[2.2, 3.4], [10.0, 11.4], [21.5, 23.0], [34.0, 35.4]];
+  let sweepA = 0, sweepX = 0;
+  for (const s of sweeps) {
+    if (seg(t, s[0], s[1])) {
+      const k = (t - s[0]) / (s[1] - s[0]);
+      sweepA = Math.sin(Math.PI * k) * 0.9;
+      sweepX = -14 + 28 * k;
+    }
+  }
+  sweep.position.set(sweepX, 0.4, 0.8);
+  sweep.material.opacity = sweepA;
+
+  // transitions: dip to black at scene edges
+  let dip = 0;
+  const edges = [T.titleIn[1], T.pipe[0], T.pipe[1], T.map[0], T.map[1], T.outro[0], T.outro[1]];
+  for (const e of edges) dip = Math.max(dip, Math.max(0, 1 - Math.abs(t - e) / 0.45));
+  overlayMat.opacity = Math.min(0.95, dip * 0.95);
+
+  renderer.render(scene, camera);
+  renderer.render(overlayScene, overlayCam);
+  return renderer.domElement.toDataURL('image/jpeg', 0.92);
+}
+
+window.renderFrame = renderFrame;
+window.__ready = true;
+</script>
+</body>
+</html>
