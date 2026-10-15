@@ -40,7 +40,8 @@ concatenation of independent Zstandard frames:
    `<DSH_HOME>/storages/session_projcache/sessions/<session-id>.json` (version 7,
    `record.identity` + `record.rows`);
 6. the workspace folder name under `sessions/` is the `cwd` with `:` removed, `\`/`/` turned into
-   `-`, non-ASCII code units turned into `~XXXX~`, wrapped in `--…--`.
+   `-`, non-ASCII code units turned into `~` + 4 uppercase hex digits (prefix only, no
+   closing `~`), wrapped in `--…--`.
 
 The live validator is the one-shot loader:
 

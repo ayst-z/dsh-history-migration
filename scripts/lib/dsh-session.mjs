@@ -132,7 +132,7 @@ export function encodeWorkspaceDir(cwd) {
     const code = ch.charCodeAt(0);
     if (ch === ':') continue;
     if (ch === '\\') out += '-';
-    else if (code < 0x20 || code > 0x7e) out += '~' + code.toString(16).toUpperCase().padStart(4, '0') + '~';
+    else if (code < 0x20 || code > 0x7e) out += '~' + code.toString(16).toUpperCase().padStart(4, '0');
     else out += ch;
   }
   return '--' + out + '--';
