@@ -41,7 +41,16 @@ concatenation of independent Zstandard frames:
    `record.identity` + `record.rows`);
 6. the workspace folder name under `sessions/` is the `cwd` with `:` removed, `\`/`/` turned into
    `-`, non-ASCII code units turned into `~` + 4 uppercase hex digits (prefix only, no
-   closing `~`), wrapped in `--…--`.
+   closing `~`), wrapped in `--…--`;
+7. `seq` is a **reference coordinate space**, not just an order. Fields such as
+   `sourceEventSeqs` (very common on `tool/result`), `throughSeq`, `headerSeq`,
+   `startSeq`/`endSeq`, `shadowedSeqs` and `messageSeqs` hold seqs of **earlier** events and
+   must stay unique. So **append new events at `max(seq)+1` and never renumber existing
+   ones** — deleting an event and closing the gap repoints every reference and DSH answers
+   `corrupt session log: invalid committed event at line N: sourceEventSeqs ranges must
+   contain unique earlier seqs`. Re-sequencing from 0 is only for logs you build from
+   scratch. `verify-dsh-session.mjs` checks this (`seq-typed fields point at earlier,
+   unique seqs`).
 
 The live validator is the one-shot loader:
 
@@ -125,13 +134,23 @@ Writes the version-7 projection cache entry the sidebar reads. Row defaults mirr
 real DSH home; pass `--template` to seed from an existing cache of your DSH version.
 Existing entries are skipped unless `--force`.
 
+### retitle-dsh-session.mjs
+
+    node retitle-dsh-session.mjs (--in <file> | --home <DSH_HOME> --session-id <id>) --title "<text>" [--cache <projcache.json>] [--dry-run] [--json]
+
+Retitles a session **the safe way**: appends one `session/title` event at `max(seq)+1` (the
+last one wins for display) and patches `record.rows.title.val` in the projection cache. It
+never touches existing seqs — see requirement 7 above for why that matters.
+Do not run it against a session that is currently streaming.
+
 ### verify-dsh-session.mjs
 
     node verify-dsh-session.mjs --in <session.v4.jsonl.zstd> [--home <DSH_HOME>] [--session-id <id>] [--require-cache] [--dsh <launcher>] [--run-dsh] [--timeout-ms 30000] [--json]
 
 Offline checks: header frame is exactly one line; one event per frame; continuous `seq`
-from 0; `session/title` with valid `messageSeqs`; no `assistant/message` without a model
-stream; optional projcache presence. With `--run-dsh --dsh <launcher> --home <DSH_HOME>` it
+from 0; **every `seq`-typed field references an earlier, unique seq** (requirement 7);
+`session/title` with valid `messageSeqs`; no `assistant/message` without a model stream;
+optional projcache presence. With `--run-dsh --dsh <launcher> --home <DSH_HOME>` it
 also runs the live loader and reports `accepted` / `rejected (format error)`.
 
 ### selftest.mjs

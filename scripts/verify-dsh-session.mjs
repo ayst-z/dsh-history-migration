@@ -55,6 +55,34 @@ for (const e of s.events) if (typeof e.seq === 'number' && Number.isInteger(e.se
 const seqOk = s.events.length > 0 && seqs.length === s.events.length && seqs.every((v, i) => v === i);
 record('seq continuous from 0', seqOk, 'events=' + s.events.length + ' seqs=' + (seqOk ? '0..' + (s.events.length - 1) : JSON.stringify(seqs.slice(0, 12))));
 
+// Every seq-typed field (sourceEventSeqs / throughSeq / headerSeq / startSeq / ...) is a
+// reference into the SAME numbering. Renumbering events — e.g. to close the gaps left by
+// deleting an event — silently repoints every one of them, and DSH then refuses the log with
+//   corrupt session log: invalid committed event at line N:
+//   sourceEventSeqs ranges must contain unique earlier seqs
+// So: append new events at max(seq)+1 and never rewrite existing seqs.
+const seqRefCounts = new Map();
+const seqRefViolations = [];
+const isSeqField = (k) => /seq/i.test(k) && k !== 'seq';
+const walkSeqRefs = (node, e) => {
+  if (node == null || typeof node !== 'object') return;
+  if (Array.isArray(node)) { for (const x of node) walkSeqRefs(x, e); return; }
+  for (const [k, v] of Object.entries(node)) {
+    if (isSeqField(k)) {
+      const arr = Array.isArray(v) ? v : [v];
+      seqRefCounts.set(k, (seqRefCounts.get(k) || 0) + arr.length);
+      for (const x of arr) if (typeof x === 'number' && x > e.seq) seqRefViolations.push(k + '=' + x + ' > own seq ' + e.seq);
+      if (Array.isArray(v) && new Set(v).size !== v.length) seqRefViolations.push(k + ' has duplicate values at seq ' + e.seq);
+    }
+    walkSeqRefs(v, e);
+  }
+};
+for (const e of s.events) walkSeqRefs(e, e);
+record('seq-typed fields point at earlier, unique seqs', seqRefViolations.length === 0,
+  seqRefViolations.length
+    ? seqRefViolations.slice(0, 3).join('; ') + ' (' + seqRefViolations.length + ' total)'
+    : [...seqRefCounts.keys()].length + ' field(s): ' + [...seqRefCounts.keys()].join(', '));
+
 const assistantEvents = s.events.filter((e) => e.type === 'assistant/message');
 const assistantWithoutStream = assistantEvents.filter((e) => {
   const d = e.data || {};

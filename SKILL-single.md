@@ -32,6 +32,7 @@ DSH 的会话是**仅追加事件日志**：`$DSH_HOME/sessions/<工作区编码
 | R8 | `agentPreset` 要在目标 profile 组装范围内（headless 不组装 standard） | `runs under agent preset … not composed` |
 | R9 | **每轮自成一对** `turn/start … turn/end`，`turn` 递增 | `turn/start does not open the expected turn` |
 | R10 | `assistant/message` 的 `stream` 已实测的最小形态：`block-start → text-delta → block-end(tool-call 可选) → finish` | 同上 |
+| R11 | **seq 只许末尾追加，绝不许重排**：`sourceEventSeqs`/`throughSeq`/`headerSeq`/`startSeq`/`endSeq`/`shadowedSeqs`/`messageSeqs` 存的都是旧编号引用 | `corrupt … sourceEventSeqs ranges must contain unique earlier seqs` |
 
 ## 最小流程
 
@@ -54,7 +55,8 @@ node scripts/generate-dsh-cache.mjs --home "$DSH_HOME" --session <id> # 补投�
 | 未分组 | cwd 形式不对（正斜杠/双反斜杠） | R1 |
 | 列表里没有 | 缺账本或缺缓存 | R2 / R7 |
 | first frame … | 整段压成一帧 | R3 |
-| seq gap | 删改事件后没重编号 | R4 |
+| seq gap | 删改事件后没重编号 | R4（**仅限导入新建的日志**；已有日志删事件后千万别重排） |
+| corrupt … sourceEventSeqs … | 重排过 seq，引用字段还在旧坐标系 | R11 |
 | invalid settlement | assistant 少了 stream | R5 / R10 |
 | 多轮才报错 | 每轮没配对 turn/end | R9 |
 

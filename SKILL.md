@@ -59,10 +59,11 @@ description: 把其它应用的对话历史（VS Code / Copilot Chat、MiMo Stud
 - **修复**：补一条 session/title 事件（放在用户消息之后即可），并让 messageSeqs 指向首条 user/message 的 seq。
 
 **R4 · 事件 seq 必须从 0 开始、连续递增、不跳号**
-- **触发**：先删事件再导出的常见坑——删掉 assistant/message 后保留原 seq，或从 1 开始编号。
+- **触发**：**从零构造/导入**一段日志时编号写错——从 1 开始、跳号、或删掉事件后没重编号。
 - **失败外观**：校验器直接报 has seq gap。
 - **判定**：把全部事件的 seq 取出来，断言等于 0..N-1 且无重复；header 行本身没有 seq，不参与编号。
-- **修复**：按最终事件顺序重新编号，并同步修正任何引用了 seq 的字段（例如 session/title 的 messageSeqs）。
+- **修复（只适用于你自己新建的日志）**：按最终事件顺序从 0 编号，并同步修正任何引用了 seq 的字段（例如 session/title 的 messageSeqs）。
+- ⚠️ **对已有的真实会话日志，这一条反过来**：删事件后**不要重排**，因为在用的日志里到处是引用旧编号的字段（见 R11）。那时宁可留着序号空洞，也不要重排。
 
 **R5 · 第一个 zstd 帧必须恰好只装 header 一行，其后每个事件各占一帧**
 - **触发**：图省事把整段 JSONL 压成一个 zstd 帧。
@@ -75,7 +76,7 @@ description: 把其它应用的对话历史（VS Code / Copilot Chat、MiMo Stud
 - **失败外观**：要么校验直接失败，要么记录里缺 source 的 kind/provider/model 或 stream 而语义不完整。
 - **判定**：assistant/message 的 data 必须同时有 message、stream（及可选的 usage）；source 必须带 kind/provider/model。缺任一即视为不合格。
 - **修复**：不要合成。精简为仅 user/message 是实测能过校验的最简形态；需要保留的原文可以并入 user 消息正文或以纯文本附件形式另存。
-- **注意**：精简会改变事件数量，必须重跑 R4 的重新编号。
+- **注意**：精简只允许发生在**你自己新建、还没有任何 seq 引用字段**的日志上（这时才按 R4 从 0 重排）。要在真实的已有会话上做任何事（改名、分类…），一律**只追加、不重排**（R11）。
 
 **R7 · 必须补投影缓存 storages/session_projcache/sessions/\<session-id\>.json**
 - **触发**：只写了日志。日志（真源）与列表缓存是两套独立存储。
@@ -111,11 +112,22 @@ description: 把其它应用的对话历史（VS Code / Copilot Chat、MiMo Stud
 
 > **导入纪律**：一次导入 ≥2 条会话时，**每条都要单独过一遍 CLI 校验器**——单轮样本通过不能代表多轮通过（本仓库实测：9 条里单轮那条通过、另外 8 条多轮全部因 R9 失败）。
 
+**R11 · seq 是所有引用字段的坐标系：只许追加，绝不许重排**
+- **触发**：删掉某个已有事件（典型：旧的 `session/title`）后，为了让 seq 保持 0..n-1 连续，把后面的事件逐个重排。
+- **失败外观**：DSH 打开会话即报
+  `corrupt session log: invalid committed event at line N: sourceEventSeqs ranges must contain unique earlier seqs`
+  （本工作区实测：一次「改名」操作重排后 **74 / 98** 条会话中招，界面显示「历史加载失败…大部分对话报错」）
+- **根因**：`sourceEventSeqs`、`throughSeq`、`headerSeq`、`startSeq` / `endSeq`、`shadowedSeqs`、`messageSeqs` 里存的都是**旧编号下的 seq**。重排只改了事件自己的 `seq` 字段，这些引用一个字都没动 ⇒ 越过自身 seq、或悄悄指向别的事件。
+- **判定**：跑 `verify-dsh-session.mjs`，看 `seq-typed fields point at earlier, unique seqs`；逐事件检查所有名字含 `seq` 的字段（`seq` 本身除外）值 ≤ 自身 seq 且无重复。
+- **正确做法**：**只在末尾追加**新事件，`seq = max(seq)+1`。改标题就**追加**一条新的 `session/title`（最后一条生效），旧的原封不动 —— 直接用 `scripts/retitle-dsh-session.mjs`。
+- **已经重排坏了怎么救**：把越界/重复的引用钳回 `≤ 自身 seq` 并去重（对 `throughSeq` / `headerSeq` 这类「截至本事件」的字段就是钳到自身 seq）。语义会略偏，但会话能重新加载；**旧编号无法完美还原**——所以一开始就别重排。
+
 ## 失败模式速查
 
 | 现象 | 根因 | 判定/修复 |
 |---|---|---|
-| has seq gap | 删改事件后 seq 不连续 | 重新编号（R4） |
+| has seq gap | 删改事件后 seq 不连续 | **导入新建的日志**才需要从 0 重新编号（R4）；**已有日志删了事件后不要重排**——引用旧编号的字段会一起坏掉（R11） |
+| corrupt … sourceEventSeqs ranges must contain unique earlier seqs | 重排过 seq，引用字段还停在旧坐标系 | 追加而不重排（R11）；已坏的把越界引用钳回并去重 |
 | first frame is not exactly one header line | 整段压成一帧 | 拆成 header 帧 + 每事件一帧（R5） |
 | 工作文件夹未分组 | header.cwd 与工作区 path 不一致 | 原样写入账本 path（R1） |
 | 会话在磁盘上但列表没有 | 未登记 sessionIds，或缺投影缓存 | 补账本（R2）与缓存（R7） |

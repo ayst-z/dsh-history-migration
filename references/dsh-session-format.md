@@ -19,7 +19,7 @@
             <session-id>.json
         session_projcache.json          # 投影缓存的领域 KV 表
 
-实测的目录名编码：把工作区绝对路径里的分隔符和冒号替换为连字符，整体用双连字符包边；非 ASCII 字符按 UTF-16 码元转成 `~` + 大写四位十六进制（**只加前缀 `~`，不加收尾 `~`**）。例如 `C:\Users\ZMF\Documents\肥鱼遗言mv` → `--C-Users-ZMF-Documents-~80A5~9C7C~9057~8A00mv--`，连续非 ASCII 之间只共享下一个转义自带的那一个 `~`（`~80A5~9C7C`，**不是** `~80A5~~9C7C~`）。**目录名只是物理寻址，工作区归属由 header.cwd 决定**（见第 6 节）。如果拿不准，就用 DSH 自己为原生会话创建的目录名做参照。
+实测的目录名编码：把工作区绝对路径里的分隔符和冒号替换为连字符，整体用双连字符包边；非 ASCII 字符按 UTF-16 码元转成 `~` + 大写四位十六进制（**只加前缀 `~`，不加收尾 `~`**）。例如 `<workspace>\肥鱼遗言mv` → `--<workspace 按同样规则转义>-~80A5~9C7C~9057~8A00mv--`，连续非 ASCII 之间只共享下一个转义自带的那一个 `~`（`~80A5~9C7C`，**不是** `~80A5~~9C7C~`）。**目录名只是物理寻址，工作区归属由 header.cwd 决定**（见第 6 节）。如果拿不准，就用 DSH 自己为原生会话创建的目录名做参照。
 
 ## 2. 物理格式：session.v4.jsonl.zstd
 
@@ -97,8 +97,19 @@ header 的 cwd 是"日志旁的元数据"，**不属于事件日志**，也不�
 - 首个事件的 seq 为 0，其后每个事件依次 +1；
 - **不得跳号、不得重复**，否则报 has seq gap；
 - header 行没有 seq；
-- 删除或精简事件（例如去掉所有 assistant/message）后**必须整体重新编号**；
-- 重新编号后要同步修正引用 seq 的字段，例如 session/title 的 messageSeqs。
+- 事件虽然按 seq 排序，但 **seq 更重要的身份是「引用坐标系」**：一批字段里存的就是别的事件的 seq ——
+  `sourceEventSeqs`（tool/result、system/message、user/message 上常见，量最大）、`throughSeq`（session-log-*/delivery-accepted）、
+  `headerSeq`（developer/message）、`startSeq` / `endSeq`、`shadowedSeqs`（compaction/*）、`messageSeqs`（session/title）。
+  它们都指向**更早**的事件，且必须唯一。
+
+> ⚠️ **由此得出一条铁律：seq 只许在末尾追加（`max(seq)+1`），绝不许重排。**
+> 删掉一个已有事件后，若为了保持 0..n-1 连续而把后面的事件逐个重排，那些引用字段仍在旧坐标系里 ⇒
+> 越过自身 seq、或悄悄指向别的事件，DSH 直接拒绝加载：
+> `corrupt session log: invalid committed event at line N: sourceEventSeqs ranges must contain unique earlier seqs`。
+> 实测代价：一次「改标题」重排就让 74/98 条会话报「历史加载失败」。
+> 改标题的正确做法是**追加**一条新的 `session/title`（最后一条生效，旧的原封不动），见 `scripts/retitle-dsh-session.mjs`。
+> 只有**全新构造**的日志（导入）才需要从 0 开始编号。
+> 已经重排坏了：把所有含 `seq` 的字段（`seq` 本身除外）钳回 `≤ 自身 seq` 并去重，可以救回可加载性，但旧编号无法完美还原。
 
 session/title 的 messageSeqs 通常指向首条 user/message 的 seq。
 

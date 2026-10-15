@@ -33,6 +33,9 @@ node scripts/generate-dsh-cache.mjs --home "$env:USERPROFILE\.dsh" --session <se
 
 # 3) 校验（报 “agent preset … does not compose” = 格式已通过）
 node scripts/verify-dsh-session.mjs --in <session.v4.jsonl.zstd> --require-cache --run-dsh --dsh <dsh 启动器>
+
+# 4) 改标题（已有会话；只追加事件，不重排 seq）
+node scripts/retitle-dsh-session.mjs --home "$env:USERPROFILE\.dsh" --session-id <session-id> --title "新标题"
 ```
 
 ## 设计：四步流水线
@@ -42,9 +45,10 @@ node scripts/verify-dsh-session.mjs --in <session.v4.jsonl.zstd> --require-cache
 | 抽取 | `export-vscode-chat.mjs` / `import-mimo-export.mjs` / `export-mimo.mjs` / `export-opencode.mjs` | `turns.json`、`vscode-sessions.json`、MiMo 三份 Markdown、`<session-id>.turns.json` + `opencode-index.json` |
 | 生成 | `build-dsh-session.mjs` | `session.v4.jsonl.zstd`（首帧仅 header、每事件一帧、seq 连续、逐轮 turn 配对） |
 | 登记 | `generate-dsh-cache.mjs` + 手改 `workspace.json` 的 `sessionIds` | 侧栏可见 |
+| 改名/整理 | `retitle-dsh-session.mjs`（**追加** `session/title`，不重排 seq） | 侧栏标题更新 |
 | 校验 | `verify-dsh-session.mjs` / `list-dsh-sessions.mjs` / `selftest.mjs` | PASS / FAIL |
 
-## DSH 会话格式：9 条硬性要求
+## DSH 会话格式：11 条硬性要求
 
 | # | 要求 | 违反时报错 |
 |---|---|---|
@@ -57,6 +61,8 @@ node scripts/verify-dsh-session.mjs --in <session.v4.jsonl.zstd> --require-cache
 | R7 | 必须有投影缓存 `storages/session_projcache/sessions/<id>.json`（version 7） | 侧栏看不到该会话 |
 | R8 | `agentPreset` 要在目标 profile 组装范围内（headless 不组装 `standard`） | `runs under agent preset … not composed` |
 | R9 | **每轮自成一对** `turn/start … turn/end`，`turn` 递增 | `turn/start does not open the expected turn` |
+| R10 | `assistant/message` 的 `stream` 最小形态：`block-start → text-delta → block-end → finish` | `invalid settlement fields` |
+| R11 | **seq 只许末尾追加，绝不许重排**（`sourceEventSeqs`/`throughSeq`/`headerSeq`/`startSeq`/`endSeq`/`shadowedSeqs`/`messageSeqs` 存的全是旧编号引用） | `corrupt … sourceEventSeqs ranges must contain unique earlier seqs` |
 
 ## 可扩展性
 
